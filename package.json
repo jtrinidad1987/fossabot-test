@@ -16,7 +16,7 @@
     "jsonwebtoken": "8.5.1",
     "lodash": "4.17.20",
     "minimist": "1.2.5",
-    "multer": "2.0.0",
+    "multer": "2.5.0",
     "node-forge": "0.10.0",
     "nth-check": "1.0.2",
     "passport": "0.5.3",

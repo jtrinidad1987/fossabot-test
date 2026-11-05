@@ -1,74 +1,54 @@
 import express from "express";
 import http from "http";
-import Handlebars from "handlebars";
-import jwt from "jsonwebtoken";
-import _ from "lodash";
-import minimist from "minimist";
-import multer from "multer";
-import forge from "node-forge";
-import nthCheck from "nth-check";
 import passport from "passport";
-import semver from "semver";
-import * as tar from "tar";
-import { WebSocketServer } from "ws";
-import YAML from "yaml";
+import { createAuth } from "./auth";
+import { loadConfig } from "./config";
+import { createWelcomeRenderer } from "./notifications";
+import { filesRouter } from "./routes/files";
+import { hashRouter } from "./routes/hash";
+import { renderRouter } from "./routes/render";
+import { selectRouter } from "./routes/select";
+import { uploadRouter } from "./routes/upload";
+import { versionRouter } from "./routes/version";
+import { attachWebSocket } from "./ws";
 
-const args = minimist(process.argv.slice(2));
-const port = Number(args.port ?? process.env.PORT ?? 3000);
-const JWT_SECRET = process.env.JWT_SECRET ?? "dev-secret";
+const config = loadConfig();
+const welcome = createWelcomeRenderer(config);
+const auth = createAuth(config);
 
 const app = express();
-const upload = multer({ dest: "uploads/" });
-
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// passport is initialized, but the app has no sessions and never calls
+// req.login / req.logout, where the session-fixation bug lives (CVE-2022-25896).
 app.use(passport.initialize());
 
-const greeting = Handlebars.compile("<h1>Hello, {{name}}!</h1>");
-
-app.get("/", (req, res) => {
-  res.send(greeting({ name: String(req.query.name ?? "world") }));
+app.get("/", (_req, res) => {
+  res.send(`${config.app.name} is running`);
 });
 
 app.post("/token", (req, res) => {
-  const user = _.pick(req.body, ["id", "name"]);
-  res.json({ token: jwt.sign(user, JWT_SECRET, { expiresIn: "1h" }) });
+  const user = typeof req.body?.user === "string" ? req.body.user : "anonymous";
+  res.json({ token: auth.issue(user) });
 });
 
-app.get("/hash/:value", (req, res) => {
-  const md = forge.md.sha256.create();
-  md.update(req.params.value);
-  res.json({ sha256: md.digest().toHex() });
+app.get("/me", auth.requireAuth, (_req, res) => {
+  const sub = String(res.locals.user?.sub ?? "");
+  res.json({ user: res.locals.user, message: welcome(sub) });
 });
 
-app.get("/semver/:version", (req, res) => {
-  const v = req.params.version;
-  res.json({ valid: semver.valid(v) !== null, satisfies: semver.satisfies(v, ">=1.0.0") });
-});
-
-app.get("/nth/:formula/:index", (req, res) => {
-  const check = nthCheck(req.params.formula);
-  res.json({ matches: check(Number(req.params.index)) });
-});
-
-app.post("/config", express.text({ type: "*/*" }), (req, res) => {
-  res.json(YAML.parse(String(req.body)));
-});
-
-app.post("/upload", upload.single("file"), (req, res) => {
-  res.json({ received: req.file?.originalname ?? null, size: req.file?.size ?? 0 });
-});
-
-app.get("/archive", async (_req, res) => {
-  res.setHeader("Content-Type", "application/gzip");
-  tar.c({ gzip: true, cwd: process.cwd() }, ["package.json"]).pipe(res);
-});
+app.use(versionRouter);
+app.use(renderRouter);
+app.use(selectRouter);
+app.use(uploadRouter);
+app.use(filesRouter);
+app.use(hashRouter);
 
 const server = http.createServer(app);
-const wss = new WebSocketServer({ server });
-wss.on("connection", (socket) => {
-  socket.on("message", (data) => socket.send(`echo: ${data}`));
-});
+attachWebSocket(server);
 
-server.listen(port, () => {
-  console.log(`fossabot-test listening on http://localhost:${port}`);
+server.listen(config.app.port, () => {
+  console.log(welcome("operator"));
+  console.log(`${config.app.name} listening on http://localhost:${config.app.port}`);
 });

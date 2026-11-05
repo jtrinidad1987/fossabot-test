@@ -1,0 +1,11 @@
+# Application config, read from disk at startup (operator-controlled).
+app:
+  name: fossabot-test
+  port: 3000
+notifications:
+  # Rendered with lodash _.template; both values come from this file.
+  welcomeTemplate: "Welcome to <%= data.appName %>, <%= data.user %>!"
+  templateVariable: data
+jwt:
+  issuer: fossabot-test
+  expiresIn: 1h

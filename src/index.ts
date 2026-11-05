@@ -28,6 +28,10 @@ app.get("/", (_req, res) => {
   res.send(`${config.app.name} is running`);
 });
 
+app.get("/healthz", (_req, res) => {
+  res.json({ status: "ok", uptimeSeconds: Math.round(process.uptime()) });
+});
+
 app.post("/token", (req, res) => {
   const user = typeof req.body?.user === "string" ? req.body.user : "anonymous";
   res.json({ token: auth.issue(user) });

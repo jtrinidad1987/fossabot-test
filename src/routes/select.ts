@@ -7,7 +7,8 @@ export const selectRouter = Router();
 // parser (CVE-2021-3803).
 selectRouter.get("/select", (req, res) => {
   const formula = String(req.query.formula ?? "odd");
-  const count = Math.min(Number(req.query.count ?? 10), 100);
+  const requested = Number(req.query.count ?? 10);
+  const count = Number.isInteger(requested) && requested > 0 ? Math.min(requested, 100) : 10;
   const matches = nthCheck(formula);
   res.json({ formula, indexes: Array.from({ length: count }, (_v, i) => i).filter(matches) });
 });

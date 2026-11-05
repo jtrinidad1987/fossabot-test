@@ -18,7 +18,8 @@ Config is read from `config/app.yaml` (override with `--config <path>`).
 
 | Method | Path | Notes |
 |---|---|---|
-| GET | `/` | Health check |
+| GET | `/` | Root page; returns a "running" message |
+| GET | `/healthz` | JSON health status and uptime |
 | POST | `/token` | `{"user": "..."}` → signed JWT |
 | GET | `/me` | Requires `Authorization: Bearer <token>` |
 | GET | `/client-check/:version` | Checks a client version against a supported range |

@@ -1,0 +1,25 @@
+name: FOSSA
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fossa-scan:
+    name: FOSSA analyze
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run FOSSA analysis
+        uses: fossas/fossa-action@v2
+        with:
+          api-key: ${{ secrets.FOSSA_API_KEY }}
+          # On PRs, report results against the PR's source branch instead of the detected ref.
+          branch: ${{ github.head_ref || github.ref_name }}
